@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b2a5b">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="EMEEG Points">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="description" content="Check your EMEEG Customer Care points">
+<title>EMEEG Points</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<style>
+  :root { --navy: #0b2a5b; --navy2: #14408f; --yellow: #f6c518; --bg: #eef1f6; --card: #fff; --muted: #5d6779; --line: #e3e7ee; --pos: #12804a; --neg: #c0392b; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; background: var(--bg); color: #111827; font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+  body { min-height: 100vh; padding-bottom: env(safe-area-inset-bottom); }
+  .top { background: var(--navy); color: #fff; padding: calc(14px + env(safe-area-inset-top)) 18px 64px; position: relative; overflow: hidden; }
+  .top:after { content: ""; position: absolute; left: -10%; right: -10%; bottom: -46px; height: 90px; background: var(--bg); border-radius: 50% 50% 0 0; }
+  .top .row { display: flex; align-items: center; justify-content: space-between; position: relative; z-index: 1; }
+  .top .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; letter-spacing: .4px; }
+  .top .brand img { height: 34px; }
+  .top .brand small { display: block; font-weight: 600; font-size: 11px; color: #c9d6f0; letter-spacing: 2px; }
+  .iconbtn { background: rgba(255,255,255,.12); color: #fff; border: 0; border-radius: 10px; padding: 8px 11px; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+  main { max-width: 520px; margin: -54px auto 0; padding: 0 14px 30px; position: relative; z-index: 2; }
+  .panel { background: var(--card); border-radius: 18px; padding: 18px; box-shadow: 0 8px 26px rgba(11,42,91,.10); margin-bottom: 14px; }
+  h2 { font-size: 15px; margin: 0 0 10px; color: var(--navy); letter-spacing: .3px; }
+  label { display: block; font-size: 13px; font-weight: 700; color: var(--navy); margin: 12px 0 5px; }
+  input { width: 100%; font: inherit; font-size: 17px; padding: 13px 14px; border: 1.5px solid #cdd4e0; border-radius: 12px; background: #fff; color: #111; }
+  input:focus { outline: none; border-color: var(--navy2); box-shadow: 0 0 0 3px rgba(20,64,143,.15); }
+  input.pin { letter-spacing: 10px; font-size: 24px; text-align: center; font-family: Consolas, "Courier New", monospace; }
+  .btn { display: block; width: 100%; margin-top: 16px; padding: 14px; font: inherit; font-size: 16px; font-weight: 800; border: 0; border-radius: 12px; background: var(--navy); color: #fff; cursor: pointer; }
+  .btn:disabled { opacity: .6; }
+  .btn.yellow { background: var(--yellow); color: var(--navy); }
+  .muted { color: var(--muted); font-size: 13px; }
+  .err { background: #fdecea; color: #8c1d12; border-radius: 12px; padding: 11px 13px; font-size: 14px; margin-top: 12px; }
+  .note { background: #fff7db; color: #6b4a00; border-radius: 12px; padding: 10px 12px; font-size: 13px; margin-bottom: 12px; }
+  .hello { font-size: 14px; color: var(--muted); }
+  .bal { text-align: center; padding: 6px 0 2px; }
+  .bal .n { font-size: 56px; font-weight: 900; color: var(--navy); line-height: 1; letter-spacing: -1px; }
+  .bal .n small { font-size: 18px; font-weight: 700; letter-spacing: 0; }
+  .bal .v { font-size: 17px; font-weight: 700; margin-top: 6px; }
+  .bal .v b { color: var(--pos); }
+  .mini { margin-top: 14px; border-radius: 14px; padding: 13px 15px; background: var(--navy); color: #fff; position: relative; overflow: hidden; }
+  .mini:after { content: ""; position: absolute; right: -28px; top: -20px; width: 90px; height: 140%; background: var(--yellow); transform: rotate(18deg); opacity: .95; }
+  .mini > * { position: relative; z-index: 1; padding-right: 54px; }
+  .mini .nm { font-weight: 800; font-size: 16px; }
+  .mini .no { font-family: Consolas, "Courier New", monospace; font-size: 13px; color: var(--yellow); letter-spacing: .5px; margin-top: 3px; word-break: break-all; }
+  .mini .ex { font-size: 12px; color: #c9d6f0; margin-top: 4px; }
+  .mini .badge { background: #fff; }
+  .badge { display: inline-block; font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 10px; background: #fdecea; color: var(--neg); }
+  .rule { text-align: center; font-size: 13px; color: var(--muted); margin-top: 10px; }
+  .upd { text-align: center; font-size: 12px; color: var(--muted); margin: -4px 0 12px; }
+  .news { border-left: 4px solid var(--yellow); padding: 6px 0 6px 12px; margin-bottom: 10px; }
+  .news b { display: block; color: var(--navy); }
+  .news p { margin: 3px 0 0; font-size: 14px; white-space: pre-wrap; }
+  .news small { color: var(--muted); font-size: 11.5px; }
+  .tix { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .tix span { font-family: Consolas, "Courier New", monospace; font-size: 13px; font-weight: 700; background: #fff7db; border: 1px dashed #d9a800; color: #5a4300; border-radius: 8px; padding: 5px 8px; }
+  .hist { list-style: none; margin: 0; padding: 0; }
+  .hist li { display: flex; justify-content: space-between; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+  .hist li:last-child { border-bottom: 0; }
+  .hist .t { font-weight: 700; font-size: 14px; }
+  .hist .d { font-size: 12px; color: var(--muted); }
+  .hist .p { font-weight: 800; white-space: nowrap; }
+  .pos { color: var(--pos); } .neg { color: var(--neg); }
+  .install { display: none; }
+  .install.show { display: block; }
+  .center { text-align: center; }
+  .logo-big { display: block; width: 70%; max-width: 260px; margin: 4px auto 6px; }
+  .link { background: none; border: 0; color: var(--navy2); font: inherit; font-size: 14px; font-weight: 600; text-decoration: underline; cursor: pointer; padding: 6px; }
+  .spin { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,.4); border-top-color: #fff; border-radius: 50%; animation: s 0.8s linear infinite; vertical-align: -3px; }
+  @keyframes s { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="top">
+  <div class="row">
+    <div class="brand"><img src="icons/icon-192.png" alt=""><div>EMEEG<small>CUSTOMER CARE</small></div></div>
+    <button class="iconbtn" id="refreshBtn" onclick="refresh(true)" style="display:none">↻ Refresh</button>
+  </div>
+</div>
+<main id="app"></main>
+
+<script src="config.js"></script>
+<script>
+const CFG = window.EMEEG_APP || {};
+const $app = document.getElementById('app');
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const num = (n) => Number(n || 0).toLocaleString('en-PH');
+const peso = (n) => '₱' + Number(n || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const store = { get(k) { try { return JSON.parse(localStorage.getItem('emeeg_' + k)); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem('emeeg_' + k, JSON.stringify(v)); } catch {} }, del(k) { try { localStorage.removeItem('emeeg_' + k); } catch {} } };
+
+function normCard(v) {
+  let s = String(v || '').toUpperCase().replace(/\s+/g, '').trim();
+  const m = s.match(/^([A-Z]+)-?(\d{8})-?([A-Z0-9]{6})$/);
+  return m ? `${m[1]}-${m[2]}-${m[3]}` : s;
+}
+function fmtDate(d) {
+  if (!d) return '';
+  const [y, m, day] = String(d).slice(0, 10).split('-').map(Number);
+  return new Date(y, m - 1, day).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+function ago(iso) {
+  if (!iso) return '';
+  const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
+  if (s < 90) return 'just now';
+  if (s < 3600) return Math.round(s / 60) + ' minutes ago';
+  if (s < 86400) return Math.round(s / 3600) + ' hour' + (s < 5400 ? '' : 's') + ' ago';
+  return new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+}
+async function rpc(fn, body) {
+  const url = String(CFG.supabaseUrl || '').replace(/\/+$/, '');
+  const headers = { 'Content-Type': 'application/json', apikey: CFG.supabaseKey };
+  if (/^eyJ/.test(CFG.supabaseKey || '')) headers.Authorization = 'Bearer ' + CFG.supabaseKey;
+  const r = await fetch(`${url}/rest/v1/rpc/${fn}`, { method: 'POST', headers, body: JSON.stringify(body || {}) });
+  const j = await r.json().catch(() => null);
+  if (!r.ok) throw new Error((j && (j.message || j.hint)) || 'Server error ' + r.status);
+  return j;
+}
+
+// ---------------------------------------------------------------- login
+function showLogin(msg, cardValue) {
+  document.getElementById('refreshBtn').style.display = 'none';
+  const q = new URLSearchParams(location.search).get('card');
+  const card = cardValue || q || (store.get('login') || {}).card || '';
+  $app.innerHTML = `
+  <div class="panel">
+    <img class="logo-big" src="img/logo.png" alt="EMEEG">
+    <h2 class="center" style="font-size:20px;margin:6px 0 2px">Check your points</h2>
+    <div class="muted center">Use the card number and PIN on your EMEEG app slip.</div>
+    <form id="loginForm" autocomplete="on">
+      <label for="card">Card number</label>
+      <input id="card" name="card" autocomplete="username" autocapitalize="characters" placeholder="EMEEG-20261004-ABC123" value="${esc(card)}">
+      <label for="pin">PIN (4 digits)</label>
+      <input id="pin" name="pin" class="pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="current-password" placeholder="••••">
+      ${msg ? `<div class="err">${msg}</div>` : ''}
+      <button class="btn" id="loginBtn" type="submit">Show my points</button>
+      <div class="muted center" style="margin-top:12px">No PIN yet, or forgot it? Ask at the EMEEG counter.</div>
+    </form>
+  </div>
+  ${installBox()}`;
+  document.getElementById('loginForm').addEventListener('submit', (e) => { e.preventDefault(); doLogin(); });
+  setTimeout(() => document.getElementById(card ? 'pin' : 'card').focus(), 50);
+  bindInstall();
+}
+async function doLogin() {
+  const card = normCard(document.getElementById('card').value);
+  const pin = document.getElementById('pin').value.trim();
+  if (!card || !pin) return showLogin('Type your card number and PIN.', card);
+  const btn = document.getElementById('loginBtn'); btn.disabled = true; btn.innerHTML = '<span class="spin"></span> Checking…';
+  try {
+    const r = await rpc('customer_login', { p_card: card, p_pin: pin });
+    if (r && r.locked) return showLogin(`Too many wrong PINs. Please try again in ${r.minutes} minute${r.minutes == 1 ? '' : 's'}.`, card);
+    if (!r || !r.ok) return showLogin('Card number or PIN is not correct. Check your app slip, or ask at the counter.', card);
+    store.set('login', { card, pin });
+    store.set('last', { at: new Date().toISOString(), data: r });
+    showPoints(r, false);
+    loadNews();
+  } catch (e) {
+    showLogin('Cannot connect right now. Check your internet and try again.', card);
+  }
+}
+function logout() {
+  if (!confirm('Log out from this phone?')) return;
+  store.del('login'); store.del('last'); store.del('news');
+  showLogin('', '');
+}
+
+// ---------------------------------------------------------------- points screen
+function showPoints(r, offline) {
+  document.getElementById('refreshBtn').style.display = 'inline-block';
+  const c = r.card || {};
+  const last = r.store && r.store.last_sync;
+  const raffles = (c.raffles || []);
+  const hist = (c.history || []);
+  $app.innerHTML = `
+  ${offline ? `<div class="note">You are offline. These are your saved points from ${esc(ago(offline))}.</div>` : ''}
+  <div class="panel">
+    <div class="hello">Hello, <b>${esc(c.name || '')}</b></div>
+    <div class="bal">
+      <div class="n">${num(c.balance)} <small>points</small></div>
+      <div class="v">worth <b>${peso(c.value)}</b></div>
+    </div>
+    <div class="rule">Earn 1 point for every ${peso(c.peso_per_point || 100).replace('.00', '')} you spend · 1 point = ${peso(c.point_value || 1)}</div>
+    <div class="mini">
+      <div class="nm">${esc(c.name || '')}</div>
+      <div class="no">${esc(c.card_number || '')}</div>
+      <div class="ex">${c.expires_at ? (c.expired ? '<span class="badge">EXPIRED</span> ' : 'Valid until ') + esc(fmtDate(c.expires_at)) : 'No expiry'}</div>
+    </div>
+    ${c.expired ? '<div class="err">Your card has expired. Renew it at the EMEEG counter to keep earning points.</div>' : ''}
+  </div>
+  ${last ? `<div class="upd">Points updated ${esc(ago(last))}</div>` : ''}
+  <div id="newsBox">${newsHtml(store.get('news') || [])}</div>
+  ${raffles.map((f) => `<div class="panel"><h2>🎟️ ${esc(f.name)}</h2>
+      <div class="muted">${f.tickets.length ? `You have <b>${f.tickets.length}</b> raffle ticket${f.tickets.length === 1 ? '' : 's'}.` : 'No tickets yet.'}
+        Every ${peso(f.per_entry).replace('.00', '')} on one receipt = 1 ticket. Draw: <b>${esc(fmtDate(f.draw))}</b></div>
+      ${f.tickets.length ? `<div class="tix">${f.tickets.map((t) => `<span>${esc(t)}</span>`).join('')}</div>` : ''}</div>`).join('')}
+  <div class="panel"><h2>Points history</h2>
+    ${hist.length ? `<ul class="hist">${hist.map((h) => `<li><div><div class="t">${esc(h.label)}</div>
+      <div class="d">${esc(fmtDate(h.date))}${h.receipt ? ' · Receipt ' + esc(h.receipt) : ''}</div></div>
+      <div class="p ${h.points >= 0 ? 'pos' : 'neg'}">${h.points >= 0 ? '+' : ''}${num(h.points)}</div></li>`).join('')}</ul>` : '<div class="muted">No points yet. Show your card when you buy at EMEEG.</div>'}
+  </div>
+  ${installBox()}
+  <div class="center"><button class="link" onclick="logout()">Not you? Log out</button></div>`;
+  bindInstall();
+}
+function newsHtml(list) {
+  if (!list || !list.length) return '';
+  return `<div class="panel"><h2>📣 News from ${esc(CFG.storeName || 'EMEEG')}</h2>${list.map((n) => `<div class="news">
+    <b>${esc(n.title)}</b>${n.body ? `<p>${esc(n.body)}</p>` : ''}<small>${esc(fmtDate(n.created_at))}</small></div>`).join('')}</div>`;
+}
+async function loadNews() {
+  try {
+    const list = await rpc('customer_news', {});
+    store.set('news', list || []);
+    const box = document.getElementById('newsBox');
+    if (box) box.innerHTML = newsHtml(list);
+  } catch {}
+}
+let busy = false;
+async function refresh(manual) {
+  const login = store.get('login');
+  if (!login || busy) return;
+  busy = true;
+  const btn = document.getElementById('refreshBtn');
+  if (manual) btn.innerHTML = '<span class="spin"></span>';
+  try {
+    const r = await rpc('customer_login', { p_card: login.card, p_pin: login.pin });
+    if (r && r.ok) { store.set('last', { at: new Date().toISOString(), data: r }); showPoints(r, false); loadNews(); }
+    else if (r && !r.locked) { store.del('login'); store.del('last'); showLogin('Your PIN was changed. Please log in with your new PIN.', login.card); }
+  } catch {
+    const last = store.get('last');
+    if (last && manual) showPoints(last.data, last.at);
+  } finally { busy = false; btn.innerHTML = '↻ Refresh'; }
+}
+
+// ---------------------------------------------------------------- install on phone
+let installEvent = null;
+window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); installEvent = e; document.querySelectorAll('.install').forEach((x) => x.classList.add('show')); });
+const isStandalone = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent);
+function installBox() {
+  if (isStandalone()) return '';
+  const ios = isIOS();
+  return `<div class="panel install ${ios || installEvent ? 'show' : ''}">
+    <h2>📲 Keep EMEEG Points on your phone</h2>
+    ${ios ? '<div class="muted">Tap the <b>Share</b> button <b>⬆︎</b> in Safari, then <b>Add to Home Screen</b>.</div>'
+      : '<div class="muted">Install the app so you can check your points with one tap.</div><button class="btn yellow" data-install>Install app</button>'}
+  </div>`;
+}
+function bindInstall() {
+  document.querySelectorAll('[data-install]').forEach((b) => b.addEventListener('click', async () => {
+    if (!installEvent) { alert('Open the browser menu (⋮) and tap "Install app" or "Add to Home screen".'); return; }
+    installEvent.prompt();
+    await installEvent.userChoice.catch(() => {});
+    installEvent = null;
+    document.querySelectorAll('.install').forEach((x) => x.classList.remove('show'));
+  }));
+}
+
+// ---------------------------------------------------------------- start
+if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+if (!CFG.supabaseUrl || !CFG.supabaseKey) {
+  $app.innerHTML = '<div class="panel"><h2>Not set up yet</h2><div class="muted">This app needs its settings (config.js). Ask the store to download the phone app files from the EMEEG Loyalty app.</div></div>';
+} else {
+  const login = store.get('login'), last = store.get('last');
+  const qCard = new URLSearchParams(location.search).get('card');
+  if (login && (!qCard || normCard(qCard) === login.card)) {
+    if (last) showPoints(last.data, navigator.onLine ? false : last.at);
+    else $app.innerHTML = '<div class="panel center muted">Loading your points…</div>';
+    refresh(false).then(() => { if (!navigator.onLine && last) showPoints(last.data, last.at); });
+  } else {
+    showLogin('', qCard ? normCard(qCard) : '');
+  }
+  // keep it fresh while the app is open
+  setInterval(() => { if (document.visibilityState === 'visible') refresh(false); }, 60000);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') refresh(false); });
+}
+</script>
+</body>
+</html>
