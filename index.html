@@ -71,6 +71,15 @@
   .center { text-align: center; }
   .logo-big { display: block; width: 70%; max-width: 260px; margin: 4px auto 6px; }
   .link { background: none; border: 0; color: var(--navy2); font: inherit; font-size: 14px; font-weight: 600; text-decoration: underline; cursor: pointer; padding: 6px; }
+  .acts { display: flex; gap: 8px; margin-top: 12px; }
+  .acts button { flex: 1; padding: 11px 8px; font: inherit; font-size: 14px; font-weight: 700; border-radius: 12px; border: 1.5px solid #cdd4e0; background: #fff; color: var(--navy); cursor: pointer; }
+  .acts button.on { background: var(--navy); color: #fff; border-color: var(--navy); }
+  .acts .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--yellow); margin-left: 4px; vertical-align: 1px; }
+  .prof { display: grid; grid-template-columns: 26px 1fr; gap: 6px 8px; font-size: 15px; }
+  .prof .k { color: var(--muted); font-size: 12px; }
+  .ok { background: #e7f6ec; color: #17633a; border-radius: 12px; padding: 10px 12px; font-size: 14px; margin-top: 12px; }
+  .row2 { display: flex; gap: 10px; } .row2 > div { flex: 1; }
+  .btn.ghost { background: #fff; color: var(--navy); border: 1.5px solid #cdd4e0; }
   .spin { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,.4); border-top-color: #fff; border-radius: 50%; animation: s 0.8s linear infinite; vertical-align: -3px; }
   @keyframes s { to { transform: rotate(360deg); } }
 </style>
@@ -113,7 +122,7 @@ function ago(iso) {
   return new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 }
 async function rpc(fn, body) {
-  const url = String(CFG.supabaseUrl || '').replace(/\/+$/, '');
+  const url = String(CFG.supabaseUrl || '').trim().replace(/\/+$/, '').replace(/\/rest\/v1$/i, '').replace(/\/+$/, '');
   const headers = { 'Content-Type': 'application/json', apikey: CFG.supabaseKey };
   if (/^eyJ/.test(CFG.supabaseKey || '')) headers.Authorization = 'Bearer ' + CFG.supabaseKey;
   const r = await fetch(`${url}/rest/v1/rpc/${fn}`, { method: 'POST', headers, body: JSON.stringify(body || {}) });
@@ -171,7 +180,9 @@ function logout() {
 }
 
 // ---------------------------------------------------------------- points screen
+let CUR = null, OPEN_BOX = null;
 function showPoints(r, offline) {
+  CUR = r;
   document.getElementById('refreshBtn').style.display = 'inline-block';
   const c = r.card || {};
   const last = r.store && r.store.last_sync;
@@ -192,7 +203,12 @@ function showPoints(r, offline) {
       <div class="ex">${c.expires_at ? (c.expired ? '<span class="badge">EXPIRED</span> ' : 'Valid until ') + esc(fmtDate(c.expires_at)) : 'No expiry'}</div>
     </div>
     ${c.expired ? '<div class="err">Your card has expired. Renew it at the EMEEG counter to keep earning points.</div>' : ''}
+    <div class="acts">
+      <button id="btnProfile" onclick="toggleBox('profile')">👤 My profile${r.profile && (r.profile.birthday || r.profile.barangay) ? '' : '<span class="dot"></span>'}</button>
+      <button id="btnPin" onclick="toggleBox('pin')">🔑 Change PIN</button>
+    </div>
   </div>
+  <div id="sideBox"></div>
   ${last ? `<div class="upd">Points updated ${esc(ago(last))}</div>` : ''}
   <div id="newsBox">${newsHtml(store.get('news') || [])}</div>
   ${raffles.map((f) => `<div class="panel"><h2>🎟️ ${esc(f.name)}</h2>
@@ -207,6 +223,83 @@ function showPoints(r, offline) {
   ${installBox()}
   <div class="center"><button class="link" onclick="logout()">Not you? Log out</button></div>`;
   bindInstall();
+  if (OPEN_BOX) renderBox(OPEN_BOX);
+}
+
+// ---------------------------------------------------------------- my profile / change PIN
+function toggleBox(which) { OPEN_BOX = OPEN_BOX === which ? null : which; renderBox(OPEN_BOX); }
+function renderBox(which, msg) {
+  const box = document.getElementById('sideBox');
+  if (!box) return;
+  document.getElementById('btnProfile').classList.toggle('on', which === 'profile' || which === 'profileEdit');
+  document.getElementById('btnPin').classList.toggle('on', which === 'pin');
+  const p = (CUR && CUR.profile) || {};
+  const today = new Date(); const max = today.toISOString().slice(0, 10);
+  if (!which) { box.innerHTML = ''; return; }
+  if (which === 'profile') {
+    const empty = !p.birthday && !p.barangay && !p.address;
+    box.innerHTML = `<div class="panel"><h2>👤 My profile</h2>
+      ${empty ? '<div class="muted">Tell us your birthday and where you live. It helps EMEEG serve you better.</div>' : `<div class="prof">
+        <div>🎂</div><div><div class="k">Birthday</div>${p.birthday ? esc(fmtDate(p.birthday)) : '<span class="muted">not set</span>'}</div>
+        <div>📍</div><div><div class="k">Barangay</div>${p.barangay ? esc(p.barangay) : '<span class="muted">not set</span>'}</div>
+        <div>🏠</div><div><div class="k">Address (purok / street)</div>${p.address ? esc(p.address) : '<span class="muted">not set</span>'}</div></div>`}
+      ${msg ? `<div class="ok">${msg}</div>` : ''}
+      <button class="btn" onclick="renderBox('profileEdit')">${empty ? 'Fill in my profile' : 'Edit profile'}</button></div>`;
+  } else if (which === 'profileEdit') {
+    box.innerHTML = `<div class="panel"><h2>👤 Edit my profile</h2>
+      <form id="profForm">
+        <label for="pfBirthday">Birthday</label><input id="pfBirthday" type="date" max="${max}" min="1900-01-01" value="${esc(p.birthday || '')}">
+        <label for="pfBarangay">Barangay</label><input id="pfBarangay" maxlength="80" autocomplete="address-level3" placeholder="e.g. Peñaplata" value="${esc(p.barangay || '')}">
+        <label for="pfAddress">Address (purok / street)</label><input id="pfAddress" maxlength="200" autocomplete="street-address" placeholder="e.g. Purok 3, near the chapel" value="${esc(p.address || '')}">
+        ${msg ? `<div class="err">${msg}</div>` : ''}
+        <div class="row2"><div><button type="button" class="btn ghost" onclick="renderBox('profile')">Cancel</button></div>
+          <div><button class="btn" id="pfSave" type="submit">Save</button></div></div>
+      </form></div>`;
+    document.getElementById('profForm').addEventListener('submit', (e) => { e.preventDefault(); saveProfile(); });
+  } else if (which === 'pin') {
+    box.innerHTML = `<div class="panel"><h2>🔑 Change my PIN</h2>
+      <div class="muted">Choose 4 numbers that are easy for you to remember, but hard for others to guess (not 1234 or your birthday).</div>
+      <form id="pinForm">
+        <label for="pnOld">Current PIN</label><input id="pnOld" class="pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="current-password">
+        <label for="pnNew">New PIN</label><input id="pnNew" class="pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="new-password">
+        <label for="pnNew2">New PIN again</label><input id="pnNew2" class="pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="new-password">
+        ${msg ? `<div class="${msg.ok ? 'ok' : 'err'}">${msg.text}</div>` : ''}
+        <button class="btn" id="pnSave" type="submit">Change PIN</button>
+      </form></div>`;
+    document.getElementById('pinForm').addEventListener('submit', (e) => { e.preventDefault(); changePin(); });
+  }
+}
+async function saveProfile() {
+  const login = store.get('login'); if (!login) return;
+  const birthday = document.getElementById('pfBirthday').value || null;
+  const barangay = document.getElementById('pfBarangay').value.trim();
+  const address = document.getElementById('pfAddress').value.trim();
+  const btn = document.getElementById('pfSave'); btn.disabled = true; btn.innerHTML = '<span class="spin"></span>';
+  try {
+    const r = await rpc('customer_save_profile', { p_card: login.card, p_pin: login.pin, p_birthday: birthday, p_barangay: barangay, p_address: address });
+    if (r && r.ok) {
+      CUR.profile = { birthday, barangay, address };
+      const last = store.get('last'); if (last) { last.data.profile = CUR.profile; store.set('last', last); }
+      showPoints(CUR, false); OPEN_BOX = 'profile'; renderBox('profile', 'Saved. Thank you!');
+    } else if (r && r.error) renderBox('profileEdit', esc(r.error));
+    else { store.del('login'); showLogin('Please log in again.', login.card); }
+  } catch { renderBox('profileEdit', 'Cannot connect right now. Check your internet and try again.'); }
+}
+async function changePin() {
+  const login = store.get('login'); if (!login) return;
+  const old = document.getElementById('pnOld').value.trim(), n1 = document.getElementById('pnNew').value.trim(), n2 = document.getElementById('pnNew2').value.trim();
+  if (!/^\d{4}$/.test(n1)) return renderBox('pin', { text: 'The new PIN must be 4 numbers.' });
+  if (n1 !== n2) return renderBox('pin', { text: 'The two new PINs are not the same.' });
+  if (n1 === old) return renderBox('pin', { text: 'The new PIN is the same as the current one.' });
+  if (['1234', '0000', '1111', '4321'].includes(n1)) return renderBox('pin', { text: 'That PIN is too easy to guess. Please choose another one.' });
+  const btn = document.getElementById('pnSave'); btn.disabled = true; btn.innerHTML = '<span class="spin"></span> Saving…';
+  try {
+    const r = await rpc('customer_change_pin', { p_card: login.card, p_pin: old, p_new_pin: n1 });
+    if (r && r.ok) { store.set('login', { card: login.card, pin: n1 }); renderBox('pin', { ok: true, text: 'Your PIN is changed. Use the new PIN next time.' }); }
+    else if (r && r.locked) renderBox('pin', { text: `Too many wrong PINs. Please try again in ${r.minutes} minute${r.minutes == 1 ? '' : 's'}.` });
+    else if (r && r.error) renderBox('pin', { text: esc(r.error) });
+    else renderBox('pin', { text: 'The current PIN is not correct.' });
+  } catch { renderBox('pin', { text: 'Cannot connect right now. Check your internet and try again.' }); }
 }
 function newsHtml(list) {
   if (!list || !list.length) return '';
@@ -230,7 +323,11 @@ async function refresh(manual) {
   if (manual) btn.innerHTML = '<span class="spin"></span>';
   try {
     const r = await rpc('customer_login', { p_card: login.card, p_pin: login.pin });
-    if (r && r.ok) { store.set('last', { at: new Date().toISOString(), data: r }); showPoints(r, false); loadNews(); }
+    if (r && r.ok) {
+      store.set('last', { at: new Date().toISOString(), data: r });
+      if (OPEN_BOX === 'profileEdit' || OPEN_BOX === 'pin') { CUR = { ...r, profile: CUR ? CUR.profile : r.profile }; return; }   // don't wipe what they are typing
+      showPoints(r, false); loadNews();
+    }
     else if (r && !r.locked) { store.del('login'); store.del('last'); showLogin('Your PIN was changed. Please log in with your new PIN.', login.card); }
   } catch {
     const last = store.get('last');
