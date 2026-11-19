@@ -1,6 +1,6 @@
-// EMEEG Customer app settings (made by the EMEEG Loyalty app)
+// EMEEG Customer app settings
 window.EMEEG_APP = {
-  "supabaseUrl": "",
-  "supabaseKey": "",
-  "storeName": "My Store"
+  "supabaseUrl": "https://YOUR-PROJECT-ID.supabase.co",
+  "supabaseKey": "sb_publishable_YOUR-KEY",
+  "storeName": "EMEEG"
 };
