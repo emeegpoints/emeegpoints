@@ -82,6 +82,25 @@
   .btn.ghost { background: #fff; color: var(--navy); border: 1.5px solid #cdd4e0; }
   .spin { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,.4); border-top-color: #fff; border-radius: 50%; animation: s 0.8s linear infinite; vertical-align: -3px; }
   @keyframes s { to { transform: rotate(360deg); } }
+  .scanbtn { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; margin-top: 14px; padding: 15px; font: inherit; font-size: 17px; font-weight: 800; border: 0; border-radius: 14px; background: var(--yellow); color: var(--navy); cursor: pointer; box-shadow: 0 4px 0 #d9a800; }
+  .scanbtn svg { width: 26px; height: 26px; }
+  .or { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 12px; margin: 16px 0 2px; }
+  .or:before, .or:after { content: ""; flex: 1; height: 1px; background: var(--line); }
+  .scanned { display: flex; align-items: center; gap: 10px; background: #e7f6ec; border: 1.5px solid #9fd8b4; border-radius: 12px; padding: 11px 13px; margin-top: 14px; }
+  .scanned .ic { font-size: 22px; }
+  .scanned b { display: block; color: #17633a; font-size: 16px; word-break: break-word; }
+  .scanned small { color: var(--muted); font-size: 12px; }
+  .cam { position: fixed; inset: 0; z-index: 50; background: #000; display: flex; flex-direction: column; }
+  .cam video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .cam .frame { position: absolute; left: 50%; top: 45%; width: min(68vw, 300px); aspect-ratio: 1; transform: translate(-50%, -50%); border-radius: 22px; box-shadow: 0 0 0 9999px rgba(0,0,0,.55); border: 3px solid var(--yellow); }
+  .cam .frame:after { content: ""; position: absolute; left: 8%; right: 8%; height: 3px; background: var(--yellow); top: 10%; border-radius: 3px; animation: scanline 1.8s ease-in-out infinite alternate; box-shadow: 0 0 12px var(--yellow); }
+  @keyframes scanline { to { top: 88%; } }
+  .cam .msg { position: absolute; left: 0; right: 0; top: calc(20px + env(safe-area-inset-top)); text-align: center; color: #fff; font-weight: 700; font-size: 16px; padding: 0 20px; text-shadow: 0 1px 4px #000; }
+  .cam .msg small { display: block; font-weight: 500; font-size: 13px; color: #dfe6f3; margin-top: 4px; }
+  .cam .bar { position: absolute; left: 0; right: 0; bottom: calc(24px + env(safe-area-inset-bottom)); display: flex; justify-content: center; gap: 12px; padding: 0 20px; }
+  .cam .bar button { flex: 1; max-width: 220px; padding: 14px; font: inherit; font-size: 16px; font-weight: 800; border: 0; border-radius: 14px; background: #fff; color: var(--navy); cursor: pointer; }
+  .cam .bar button.torch { flex: 0 0 auto; width: 56px; background: rgba(255,255,255,.18); color: #fff; }
+  .cam .bar button.torch.on { background: var(--yellow); color: var(--navy); }
 </style>
 </head>
 <body>
@@ -132,18 +151,29 @@ async function rpc(fn, body) {
 }
 
 // ---------------------------------------------------------------- login
+const CAM_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><rect x="7" y="7" width="4" height="4"/><rect x="13" y="7" width="4" height="4"/><rect x="7" y="13" width="4" height="4"/><path d="M13 13h4v4"/></svg>';
+let scanName = null;            // name read from the QR on the EMEEG card (the card QR holds the customer's name)
+const CARD_RE = /^[A-Z]+-\d{8}-[A-Z0-9]{6}$/;
+
 function showLogin(msg, cardValue) {
   document.getElementById('refreshBtn').style.display = 'none';
   const q = new URLSearchParams(location.search).get('card');
   const card = cardValue || q || (store.get('login') || {}).card || '';
+  const canScan = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
   $app.innerHTML = `
   <div class="panel">
     <img class="logo-big" src="img/logo.png" alt="EMEEG">
     <h2 class="center" style="font-size:20px;margin:6px 0 2px">Check your points</h2>
-    <div class="muted center">Use the card number and PIN on your EMEEG app slip.</div>
+    <div class="muted center">${scanName ? 'Now type your PIN.' : canScan ? 'Scan the QR code on your EMEEG card, then type your PIN.' : 'Use the card number and PIN on your EMEEG app slip.'}</div>
     <form id="loginForm" autocomplete="on">
-      <label for="card">Card number</label>
-      <input id="card" name="card" autocomplete="username" autocapitalize="characters" placeholder="EMEEG-20261004-ABC123" value="${esc(card)}">
+      ${scanName ? `
+        <div class="scanned"><span class="ic">✅</span><div style="flex:1"><small>Card scanned</small><b>${esc(scanName)}</b></div></div>
+        <div class="center"><button type="button" class="link" id="rescanBtn">Scan again</button> · <button type="button" class="link" id="typeBtn">Type card number</button></div>
+      ` : `
+        ${canScan ? `<button type="button" class="scanbtn" id="scanBtn">${CAM_ICON} Scan my EMEEG card</button><div class="or">or type your card number</div>` : ''}
+        <label for="card">Card number</label>
+        <input id="card" name="card" autocomplete="username" autocapitalize="characters" placeholder="EMEEG-20261004-ABC123" value="${esc(card)}">
+      `}
       <label for="pin">PIN (4 digits)</label>
       <input id="pin" name="pin" class="pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="current-password" placeholder="••••">
       ${msg ? `<div class="err">${msg}</div>` : ''}
@@ -153,29 +183,124 @@ function showLogin(msg, cardValue) {
   </div>
   ${installBox()}`;
   document.getElementById('loginForm').addEventListener('submit', (e) => { e.preventDefault(); doLogin(); });
-  setTimeout(() => document.getElementById(card ? 'pin' : 'card').focus(), 50);
+  const on = (id, fn) => { const el = document.getElementById(id); if (el) el.addEventListener('click', fn); };
+  on('scanBtn', startScan);
+  on('rescanBtn', startScan);
+  on('typeBtn', () => { scanName = null; showLogin('', ''); });
+  setTimeout(() => { const el = document.getElementById(scanName || card ? 'pin' : 'card'); if (el && (scanName || card || !canScan)) el.focus(); }, 50);
   bindInstall();
 }
+
+// ---------------------------------------------------------------- scan the card (camera)
+let cam = null;
+function loadJsQR() {
+  if (window.jsQR) return Promise.resolve();
+  return new Promise((ok, bad) => { const s = document.createElement('script'); s.src = 'jsQR.js'; s.onload = ok; s.onerror = bad; document.head.appendChild(s); });
+}
+async function startScan() {
+  stopScan();
+  const box = document.createElement('div');
+  box.className = 'cam';
+  box.innerHTML = `<video playsinline muted autoplay></video><div class="frame"></div>
+    <div class="msg">Point the camera at the QR code on your card<small>Hold it steady inside the yellow box</small></div>
+    <div class="bar"><button type="button" class="torch" id="torchBtn" style="display:none" aria-label="Flashlight">🔦</button><button type="button" id="camCancel">Cancel</button></div>`;
+  document.body.appendChild(box);
+  const video = box.querySelector('video');
+  cam = { box, stream: null, timer: 0, done: false };
+  box.querySelector('#camCancel').onclick = () => stopScan();
+  try {
+    cam.stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
+  } catch (e) {
+    stopScan();
+    const denied = e && (e.name === 'NotAllowedError' || e.name === 'SecurityError');
+    return showLogin(denied ? 'The camera is not allowed. Allow the camera for this app in your phone settings, or type your card number.' : 'Cannot open the camera. Please type your card number.', '');
+  }
+  if (!cam) { return; }
+  video.srcObject = cam.stream;
+  try { await video.play(); } catch {}
+  // flashlight (Android)
+  try {
+    const track = cam.stream.getVideoTracks()[0];
+    if (track && track.getCapabilities && track.getCapabilities().torch) {
+      const tb = box.querySelector('#torchBtn'); tb.style.display = ''; let lit = false;
+      tb.onclick = () => { lit = !lit; track.applyConstraints({ advanced: [{ torch: lit }] }).catch(() => {}); tb.classList.toggle('on', lit); };
+    }
+  } catch {}
+  let detector = null;
+  try { if ('BarcodeDetector' in window && (await BarcodeDetector.getSupportedFormats()).includes('qr_code')) detector = new BarcodeDetector({ formats: ['qr_code'] }); } catch {}
+  if (!detector) { try { await loadJsQR(); } catch { stopScan(); return showLogin('Cannot start the scanner. Please type your card number.', ''); } }
+  const canvas = document.createElement('canvas'); const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  const tick = async () => {
+    if (!cam || cam.done) return;
+    let text = null;
+    try {
+      if (video.readyState >= 2 && video.videoWidth) {
+        if (detector) {
+          const codes = await detector.detect(video);
+          if (codes && codes.length) text = codes[0].rawValue;
+        } else {
+          // read the middle part of the picture, made smaller (faster on cheap phones)
+          const vw = video.videoWidth, vh = video.videoHeight, side = Math.min(vw, vh) * 0.8;
+          const size = Math.min(640, Math.round(side));
+          canvas.width = size; canvas.height = size;
+          ctx.drawImage(video, (vw - side) / 2, (vh - side) / 2, side, side, 0, 0, size, size);
+          const img = ctx.getImageData(0, 0, size, size);
+          const code = window.jsQR(img.data, size, size, { inversionAttempts: 'attemptBoth' });
+          if (code && code.data) text = code.data;
+        }
+      }
+    } catch {}
+    if (text && text.trim()) return gotScan(text.trim());
+    if (cam) cam.timer = setTimeout(tick, detector ? 150 : 120);
+  };
+  tick();
+}
+function stopScan() {
+  if (!cam) return;
+  cam.done = true; clearTimeout(cam.timer);
+  try { cam.stream && cam.stream.getTracks().forEach((t) => t.stop()); } catch {}
+  cam.box.remove(); cam = null;
+}
+function gotScan(text) {
+  stopScan();
+  try { if (navigator.vibrate) navigator.vibrate(60); } catch {}
+  // 1) the app slip QR: a link with ?card=   2) a card number   3) the EMEEG card QR: the customer's name
+  let card = null;
+  try { const u = new URL(text); const c = u.searchParams.get('card'); if (c) card = normCard(c); } catch {}
+  if (!card && CARD_RE.test(normCard(text))) card = normCard(text);
+  if (card) { scanName = null; return showLogin('', card); }
+  if (/^https?:\/\//i.test(text)) return showLogin('That QR code is not an EMEEG card. Please scan the QR code on your EMEEG card.', '');
+  scanName = text.replace(/\s+/g, ' ').slice(0, 120);
+  showLogin('', '');
+}
+
 async function doLogin() {
-  const card = normCard(document.getElementById('card').value);
   const pin = document.getElementById('pin').value.trim();
-  if (!card || !pin) return showLogin('Type your card number and PIN.', card);
+  const byName = !!scanName;
+  const card = byName ? '' : normCard(document.getElementById('card').value);
+  if (!pin || (!byName && !card)) return showLogin(byName ? 'Type your PIN.' : 'Type your card number and PIN, or scan your card.', card);
   const btn = document.getElementById('loginBtn'); btn.disabled = true; btn.innerHTML = '<span class="spin"></span> Checking…';
   try {
-    const r = await rpc('customer_login', { p_card: card, p_pin: pin });
+    const r = byName ? await rpc('customer_login_scan', { p_name: scanName, p_pin: pin }) : await rpc('customer_login', { p_card: card, p_pin: pin });
     if (r && r.locked) return showLogin(`Too many wrong PINs. Please try again in ${r.minutes} minute${r.minutes == 1 ? '' : 's'}.`, card);
-    if (!r || !r.ok) return showLogin('Card number or PIN is not correct. Check your app slip, or ask at the counter.', card);
-    store.set('login', { card, pin });
+    if (r && r.many) { scanName = null; return showLogin('More than one card has this name. Please type your card number from your app slip.', ''); }
+    if (!r || !r.ok) return showLogin(byName ? 'The PIN is not correct for this card. Check your app slip, or ask at the counter.' : 'Card number or PIN is not correct. Check your app slip, or ask at the counter.', card);
+    const cardNo = normCard((r.card && r.card.card_number) || card);
+    scanName = null;
+    store.set('login', { card: cardNo, pin });
     store.set('last', { at: new Date().toISOString(), data: r });
     showPoints(r, false);
     loadNews();
   } catch (e) {
-    showLogin('Cannot connect right now. Check your internet and try again.', card);
+    showLogin(e && /function|schema cache|404/i.test(e.message || '') && byName
+      ? 'Scanning is not ready yet at the store. Please type your card number for now.'
+      : 'Cannot connect right now. Check your internet and try again.', card);
   }
 }
 function logout() {
   if (!confirm('Log out from this phone?')) return;
   store.del('login'); store.del('last'); store.del('news');
+  scanName = null;
   showLogin('', '');
 }
 
