@@ -462,26 +462,72 @@ async function refresh(manual) {
 
 // ---------------------------------------------------------------- install on phone
 let installEvent = null;
-window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); installEvent = e; document.querySelectorAll('.install').forEach((x) => x.classList.add('show')); });
+const UA = navigator.userAgent || '';
 const isStandalone = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
-const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent);
+const isIOS = () => /iphone|ipad|ipod/i.test(UA) || (/Macintosh/.test(UA) && navigator.maxTouchPoints > 1);
+const isAndroid = () => /android/i.test(UA);
+// Facebook, Messenger, Instagram, TikTok... open links in their own small browser that cannot install apps
+const inAppBrowser = () => /FBAN|FBAV|FB_IAB|FBIOS|Messenger|Orca-Android|Instagram|Line\/|TikTok|musical_ly|BytedanceWebview|Snapchat|Twitter/i.test(UA);
+// once the app was opened from its icon, the browser on the same phone knows it is installed
+if (isStandalone()) store.set('installed', true);
+window.addEventListener('appinstalled', () => { store.set('installed', true); installEvent = null; updateInstallBox(); });
+window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); installEvent = e; store.del('installed'); updateInstallBox(); });
+
+function installHelp() {
+  const link = location.origin + location.pathname;
+  const copyBtn = `<button class="btn ghost" data-copylink="${esc(link)}" style="margin-top:10px">📋 Copy the app link</button>`;
+  if (inAppBrowser()) {
+    const where = /Messenger|Orca-Android|MessengerLite/i.test(UA) ? 'Messenger' : /Instagram/i.test(UA) ? 'Instagram' : /TikTok|musical_ly|Bytedance/i.test(UA) ? 'TikTok' : 'Facebook';
+    return `<div class="muted">You opened this inside <b>${where}</b>, which cannot install apps.
+      Tap the <b>⋮</b> or <b>•••</b> menu at the top, then <b>${isIOS() ? 'Open in Safari' : 'Open in Chrome'}</b> (or "Open in browser"). Then install it from there.</div>${copyBtn}`;
+  }
+  if (installEvent) return '<div class="muted">Install the app so you can check your points with one tap.</div><button class="btn yellow" data-install>Install app</button>';
+  if (isIOS()) {
+    if (/CriOS|FxiOS|EdgiOS|OPiOS|GSA\//i.test(UA)) return `<div class="muted">On iPhone, apps can only be added from <b>Safari</b>. Copy the link, open <b>Safari</b>, paste it, then tap <b>Share ⬆︎</b> → <b>Add to Home Screen</b>.</div>${copyBtn}`;
+    return '<div class="muted">Tap the <b>Share</b> button <b>⬆︎</b> at the bottom of Safari, then <b>Add to Home Screen</b>, then <b>Add</b>.</div>';
+  }
+  if (/SamsungBrowser/i.test(UA)) return '<div class="muted">Tap the <b>☰</b> menu at the bottom, then <b>Add page to</b> → <b>Home screen</b>.</div>';
+  if (isAndroid()) {
+    const chrome = /Chrome\//.test(UA) && !/EdgA|OPR|Opera|MiuiBrowser|XiaoMi|UCBrowser|HeyTap|Vivo|OppoBrowser|HuaweiBrowser/i.test(UA);
+    if (chrome) return '<div class="muted">Tap the <b>⋮</b> menu at the top right, then <b>Install app</b> or <b>Add to Home screen</b>.</div>';
+    return `<div class="muted">For the best result use <b>Chrome</b>: copy the link, open <b>Chrome</b>, paste it, then tap <b>⋮</b> → <b>Install app</b>.<br>Or in this browser, open its menu and look for <b>Add to Home screen</b>.</div>${copyBtn}`;
+  }
+  return '';   // computer: nothing to show unless the browser offers to install
+}
 function installBox() {
   if (isStandalone()) return '';
-  const ios = isIOS();
-  return `<div class="panel install ${ios || installEvent ? 'show' : ''}">
-    <h2>📲 Keep EMEEG Points on your phone</h2>
-    ${ios ? '<div class="muted">Tap the <b>Share</b> button <b>⬆︎</b> in Safari, then <b>Add to Home Screen</b>.</div>'
-      : '<div class="muted">Install the app so you can check your points with one tap.</div><button class="btn yellow" data-install>Install app</button>'}
-  </div>`;
+  if (store.get('installed') && !installEvent && !inAppBrowser()) {
+    return '<div class="panel install show"><div class="muted center">✅ EMEEG Points is installed on this phone. Open it from the <b>EMEEG Points</b> icon on your home screen.</div></div>';
+  }
+  const help = installHelp();
+  if (!help) return '';
+  return `<div class="panel install show"><h2>📲 Keep EMEEG Points on your phone</h2>${help}</div>`;
+}
+function updateInstallBox() {
+  document.querySelectorAll('.install').forEach((old) => {
+    const html = installBox();
+    if (!html) { old.remove(); return; }
+    const t = document.createElement('div'); t.innerHTML = html; old.replaceWith(t.firstElementChild);
+  });
+  if (!document.querySelector('.install') && installEvent && !isStandalone()) {
+    const t = document.createElement('div'); t.innerHTML = installBox(); if (t.firstElementChild) $app.appendChild(t.firstElementChild);
+  }
+  bindInstall();
 }
 function bindInstall() {
-  document.querySelectorAll('[data-install]').forEach((b) => b.addEventListener('click', async () => {
-    if (!installEvent) { alert('Open the browser menu (⋮) and tap "Install app" or "Add to Home screen".'); return; }
+  document.querySelectorAll('[data-install]').forEach((b) => { if (b._bound) return; b._bound = true; b.addEventListener('click', async () => {
+    if (!installEvent) { updateInstallBox(); return; }
     installEvent.prompt();
-    await installEvent.userChoice.catch(() => {});
+    const choice = await installEvent.userChoice.catch(() => null);
     installEvent = null;
-    document.querySelectorAll('.install').forEach((x) => x.classList.remove('show'));
-  }));
+    if (choice && choice.outcome === 'accepted') store.set('installed', true);
+    updateInstallBox();
+  }); });
+  document.querySelectorAll('[data-copylink]').forEach((b) => { if (b._bound) return; b._bound = true; b.addEventListener('click', async () => {
+    const link = b.getAttribute('data-copylink');
+    try { await navigator.clipboard.writeText(link); b.textContent = '✅ Link copied - paste it in ' + (isIOS() ? 'Safari' : 'Chrome'); }
+    catch { prompt('Copy this link:', link); }
+  }); });
 }
 
 // ---------------------------------------------------------------- start
